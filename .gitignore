@@ -1,0 +1,9 @@
+# ROOT files
+*.root
+
+# data directory (optional)
+data/*.root
+
+# python / notebooks
+__pycache__/
+.ipynb_checkpoints/
