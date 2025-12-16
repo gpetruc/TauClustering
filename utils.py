@@ -73,6 +73,32 @@ def seeded_cone_njets0(eta, phi, pt, R_seed=0.2, R_cen=0.4, R_clu=0.4):
     return assign, seed_mask
 
 
+def seeded_cone_jets_iter(eta, phi, pt, R_clu=0.4, nseeds=16):
+    assigns = np.full(len(pt), -1, dtype=int)
+    jpt, jeta, jphi = [], [], []
+    for iter in range(nseeds):
+        pt_masked = np.where(assigns == -1, pt, 0)
+        seed = np.argmax(pt_masked)
+        if pt_masked[seed] == 0:
+            break
+        drs = deltaR(eta[seed], phi[seed], eta, phi)
+        mask = (drs < R_clu) & (pt_masked > 0)
+        w = pt[mask]
+        dEta = eta[mask] - eta[seed]
+        dPhi = delta_phi(phi[mask], phi[seed])
+        sumpt = np.sum(w)
+        jpt.append(sumpt)
+        jeta.append(eta[seed] + np.sum(w * dEta) / sumpt)
+        jphi.append(phi[seed] + np.sum(w * dPhi) / sumpt)
+        assigns[mask] = iter
+    jets = np.array(jpt),  np.array(jeta), np.array(jphi), np.zeros(len(jpt))
+    return (jets, assigns)
+            
+def antikt_clusters(eta, phi, pt, R_clu=0.4, pt_min=0.0):
+    jets, assigns = antikt_jets(eta, phi, pt, R_clu=R_clu, pt_min=pt_min)
+    seed_mask = np.zeros(len(pt), dtype=bool) # not  defined for anti-kt
+    return assign, seed_mask
+    
 def antikt_jets(eta, phi, pt, R_clu=0.4, pt_min=0.0):
     import fastjet
     px, py, pz = pt * np.cos(phi), pt * np.sin(phi), pt * np.sinh(eta)
@@ -87,8 +113,9 @@ def antikt_jets(eta, phi, pt, R_clu=0.4, pt_min=0.0):
     N = len(pt)
     assign = np.full(N, -1, dtype=int)
     jets = cluster.inclusive_jets(pt_min)
-    jpt, jeta, jphi, jmass, jndau = np.zeros(N), np.zeros(N), np.zeros(N), np.zeros(N), np.zeros(N, dtype=int)
-    for i, jet in enumerate(reversed(jets)):
+    NJ = len(jets)
+    jpt, jeta, jphi, jmass, jndau = np.zeros(NJ), np.zeros(NJ), np.zeros(NJ), np.zeros(NJ), np.zeros(NJ, dtype=int)
+    for i, jet in enumerate(fastjet.sorted_by_pt(jets)):
         #print(f"jet {i}, pt {jet.pt()}")
         jpt[i] = jet.pt()
         jeta[i] = jet.eta()
